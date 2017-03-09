@@ -3,27 +3,30 @@
 // RTCPeerConnection Options
 // Turn server addresses
 //work as a relay server
+
 var peerConnectionConfig = {
   rtcpMuxPolicy:"require",
   bundlePolicy:"max-bundle",
   iceServers:[
-    {urls: ["turn:74.125.140.127:19305?transport=udp",
-       "turn:[2A00:1450:400C:C08::7F]:19305?transport=udp",
-       "turn:74.125.140.127:443?transport=tcp",
-       "turn:[2A00:1450:400C:C08::7F]:443?transport=tcp"
+    {urls: ["turn:66.102.1.127:19305?transport=udp",
+       "turn:[2A00:1450:400C:C06::7F]:19305?transport=udp",
+       "turn:66.102.1.127:443?transport=tcp",
+       "turn:[2A00:1450:400C:C06::7F]:443?transport=tcp"
        ],
-     username:"CMiugcYFEgb+emCHfvAYzc/s6OMTIICjBQ",
-     credential:"k633U3YTyv51XK27bTS1I8SmvjY="
+     username:"CJ7ChsYFEgZKuYareIoYzc/s6OMTIICjBQ",
+     credential:"iZlI+ygLv4wrN36YT4ddss10s/A="
     },
     {urls:["stun:stun.l.google.com:19302"]}
 
   ]};
-
-
+  // has methods to exchange SDP and ICE candidates and data channels
+  //name of the room
+var room = "syhone";
+var clients;
 var  signallingServer;
 var localPeerConnection = null;
-var localStream, localIsCaller, remoteStream, audio, dataChannel, receiveChannel;
-
+var localStream, remoteStream, audio, dataChannel, receiveChannel;
+var localIsCaller = false;
 // get all DOM components
 var btnSend = document.getElementById('btn-send');
 var btnVideoStop = document.getElementById('btn-video-stop');
@@ -39,6 +42,15 @@ var messagesArea = document.getElementById('messages-area');
 var inputRoomName = document.getElementById('room-name');
 
 
+// WEBRTC STUFF STARTS HERE
+// Set objects as most are currently prefixed
+window.RTCPeerConnection = window.RTCPeerConnection || window.mozRTCPeerConnection ||
+    window.webkitRTCPeerConnection || window.msRTCPeerConnection;
+window.RTCSessionDescription = window.RTCSessionDescription || window.mozRTCSessionDescription ||
+    window.webkitRTCSessionDescription || window.msRTCSessionDescription;
+navigator.getUserMedia = navigator.getUserMedia || navigator.mozGetUserMedia ||
+    navigator.webkitGetUserMedia || navigator.msGetUserMedia;
+window.SignallingServer = window.SignallingServer
 
 //start initializations before connection
 initConnection();
@@ -46,20 +58,196 @@ initConnection();
 function initConnection() {
 
     //initialization for all peers
-    connectionState.innerHTML="Connected";
     btnVideoStart.disabled = true;
     btnVideoJoin.disabled = true;
     btnVideoStop.disabled = true;
-    // start connection to the signaling server!
-    //creat peer connection
+
     connect();
+
 }
+function connect(){
+  // create peer connection
+  localPeerConnection = new RTCPeerConnection(peerConnectionConfig);
+  // create signalling server
+  signallingServer = new SignallingServer(room);
+  //create connection to socket
+  signallingServer.connect();
 
-function connect() {
 
-    // create peer connection
-    localPeerConnection = new RTCPeerConnection(peerConnectionConfig);
+    // a remote peer has joined room
+    signallingServer.onGuestJoined = function() {
+        trace('guest joined!');
+        guestConnectionState.innerHTML = "your friend is connected";
+        btnVideoStart.disabled = false;
+        signallingServer.iAmConnected();
+      }
+      // second peer alredy joined room
+       signallingServer.youJoin = function() {
+          trace('you are connected!');
+          connectionState.innerHTML = "you are connected";
+          btnVideoStart.disabled = false;
+        }
+        signallingServer.onConnectionReceived = function() {
+           trace('the other peer is connected!');
+           guestConnectionState.innerHTML = "your friend is connected";
+           clients ++;
+           if(clients>1){
+             alert("there is more than 2 client in the room")
+           }
+         }
+         // got sdp from remote
+         signallingServer.onReceiveSdp = function(sdp) {
+             // if local was the caller, set remote desc
+             if (localIsCaller) {
+                 trace('is caller');
+                 trace('set remote session desc with answer');
+                 localPeerConnection.setRemoteDescription(new RTCSessionDescription(
+                     sdp));
+             }
+             // if local is joining a call, set remote sdp and create answer
+             else {
+               trace('call received and it rings!');
+               //initiate sdp and ice condidates exchange
+               btnVideoStart.disabled = true;
+               btnVideoJoin.disabled = false;
+              // establishRTCConnection();
+               try {
+                 audio = new Audio('ring.wav');
+                 audio.play();
+               } catch (e) {
+                 trace(e);
+               }
+               trace('set remote session desc with offer');
+               localPeerConnection.setRemoteDescription(new RTCSessionDescription(sdp));
 
+             }
+           }
+           //create data channel to send and receive data
+           openDataChannel();
+
+
+               //remote data channel triggred
+             localPeerConnection.ondatachannel = function(event) {
+
+             if (event.channel) {
+                 trace('receive remote channel');
+                 receiveChannel = event.channel;
+                 //receive message from peer
+                 receiveChannel.onmessage = function (event) {
+                 trace("Got message:", event.data);
+                 messagesArea.innerHTML += "him:"+event.data+ "<br />";
+                 };
+                 receiveChannel.onopen = function() {
+                 trace('channel opened');
+                 }
+                 receiveChannel.onclose = function(event) {
+                 trace('channel close');
+                 }
+             }
+
+         }
+
+               // get ice candidates and send them over
+               // wont get called unless SDP has been exchanged
+               localPeerConnection.onicecandidate = function(event) {
+
+                   if (event.candidate) {
+                       //!!! send ice candidate over via signalling channel
+                       trace("Sending candidate");
+
+                       signallingServer.sendICECandidate(event.candidate);
+                   }
+
+               }
+
+               // when received ICE candidate
+               signallingServer.onReceiveICECandidate = function(candidate) {
+                   trace('Set remote ice candidate');
+                   try{
+                     localPeerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+                       // stuff when the candidate is successfully passed to the ICE agent
+                       trace("ice condidate passed to agent");
+                   }
+                   catch(e){
+                     console.log("Error: Failure during addIceCandidate()");
+                   }
+               }
+
+
+
+
+
+
+
+             // save remote stream
+             localPeerConnection.onaddstream = function(data) {
+               remoteStream = data.stream;
+
+
+
+             }
+
+
+
+             //reflect the current status of ICE gathering
+             localPeerConnection.onicegatheringstatechange = function(event){
+               trace(localPeerConnection.iceGatheringState);
+             }
+
+             //check ice connection state
+             localPeerConnection.oniceconnectionstatechange = function(event) {
+
+                     trace(localPeerConnection.iceConnectionState);
+                     try {
+                       //kill connection if te other peer disconnect
+                       if(localPeerConnection.iceConnectionState === 'disconnected' || localPeerConnection.iceConnectionState === 'failed'){
+                         if (localPeerConnection != null) {
+                             localPeerConnection.removeStream(localStream);
+                             signallingServer.close();
+                             localPeerConnection.close();
+                             localVideo.src = "";
+                             remoteVideo.src = "";
+                         }
+
+                         btnVideoStart.disabled = false;
+                         btnVideoJoin.disabled = false;
+                         btnVideoStop.disabled = true;
+                         localIsCaller = false;
+                         initConnection();
+                     }
+                     } catch (e) {
+                     }
+
+                     if(localPeerConnection.iceConnectionState == 'failed'){
+                       initConnection();
+                     }
+                     if(localPeerConnection.iceConnectionState === 'closed'){
+                       initConnection();
+                     }
+                     //if connection is established
+                     // make a call
+                   if(localPeerConnection.iceConnectionState === 'connected' || 'completed'){
+
+                     if (window.URL) {
+                       // show local video
+                       remoteVideo.src = window.URL.createObjectURL(remoteStream);
+                     } else {
+
+                         remoteVideo.src = localStream;
+                     }
+                   }
+
+             }
+
+         }
+
+
+
+btnVideoStart.onclick = function(e) {
+
+    e.preventDefault();
+    // is starting the call
+    localIsCaller = true;
     //get media stream
     navigator.mediaDevices.getUserMedia({
         video: true,
@@ -73,249 +261,90 @@ function connect() {
       // it triggers 'addstream' event
       localPeerConnection.addStream(stream);
       localStream = stream;
-      // create signalling server
-      signallingServer = new SignallingServer();
-      //create connection to socket
-      signallingServer.connect();
-      //create data channel to send and receive data
-      openDataChannel();
-        //remote data channel triggred
-      localPeerConnection.ondatachannel = function(event) {
+      if (window.URL) {
+        // show local video
+        localVideo.src = window.URL.createObjectURL(localStream);
+      } else {
 
-      if (event.channel) {
-          trace('receive remote channel');
-          receiveChannel = event.channel;
-          //receive message from peer
-          receiveChannel.onmessage = function (event) {
-          trace("Got message:", event.data);
-          messagesArea.innerHTML += "him:"+event.data+ "<br />";
-          };
-          receiveChannel.onopen = function() {
-          trace('channel opened');
-          }
-          receiveChannel.onclose = function(event) {
-          trace('channel close');
-          }
+        localVideo.src = localStream;
       }
+      if(localIsCaller){
+        // set local description and send to remote
+        localPeerConnection.createOffer(function(sessionDescription) {
+        trace('set local session desc with offer');
+        // set local description
+        localPeerConnection.setLocalDescription(sessionDescription);
 
-  }
-
-        // get ice candidates and send them over
-        // wont get called unless SDP has been exchanged
-        localPeerConnection.onicecandidate = function(event) {
-
-            if (event.candidate) {
-                //!!! send ice candidate over via signalling channel
-                trace("Sending candidate");
-
-                signallingServer.sendICECandidate(event.candidate);
-            }
-
-        }
-
-        // when received ICE candidate
-        signallingServer.onReceiveICECandidate = function(candidate) {
-            trace('Set remote ice candidate');
-            try{
-              localPeerConnection.addIceCandidate(new RTCIceCandidate(candidate));
-                // stuff when the candidate is successfully passed to the ICE agent
-                trace("ice condidate passed to agent");
-            }
-            catch(e){
-              console.log("Error: Failure during addIceCandidate()");
-            }
-        }
-      // a remote peer has joined room
-      signallingServer.onGuestJoined = function() {
-          trace('guest joined!');
-          guestConnectionState.innerHTML = "Guest connected";
-          btnVideoStart.disabled = false;
-        }
-        // second peer alredy joined room
-         signallingServer.secondPeerJoined = function() {
-            trace('second peer connected!');
-            guestConnectionState.innerHTML = "host connected";
-            btnVideoStart.disabled = false;
-          }
-          //the other peer start call and wait for you to establish connection
-          signallingServer.onReceiveEstablishRequest = function() {
-             trace('establish request received ');
-             //initiate sdp and ice condidates exchange
-             establishRTCConnection();
-           }
-    }).catch(function(error) {
-      /* handle the error */
-      //could not get media
-      console.error('Something went wrong!');
-      console.error(error);
-      alert(error);
-    });
-  }
-
-btnVideoStart.onclick = function(e) {
-    e.preventDefault();
-    // is starting the call
-    localIsCaller = true;
-
-    if (window.URL) {
-      // show local video
-      localVideo.src = window.URL.createObjectURL(localStream);
-    } else {
-
-      localVideo.src = localStream;
+        // send local sdp to remote
+        signallingServer.sendSDP(sessionDescription);
+      },handleCreateOfferError);
     }
-    // send establish connection request to the other peer
-    signallingServer.establishConnection();
-    // can start once have gotten local video
-    //establish connection
-    establishRTCConnection();
+
     btnVideoStart.disabled = true;
     btnVideoJoin.disabled = true;
     btnVideoStop.disabled = false;
+
+  }).catch(function(error) {
+    /* handle the error */
+    //could not get media
+    console.error('Something went wrong!');
+    console.error(error);
+    alert(error);
+  });
 }
 
-function establishRTCConnection() {
-
-  if(localIsCaller){
-    // set local description and send to remote
-    localPeerConnection.createOffer(function(sessionDescription) {
-    trace('set local session desc with offer');
-    // set local description
-    localPeerConnection.setLocalDescription(sessionDescription);
-
-    // send local sdp to remote
-    signallingServer.sendSDP(sessionDescription);
-  },handleCreateOfferError);
-}
-
-    signallingServer.onCallRceived = function() {
-     trace('call received and it rings!');
-     //initiate sdp and ice condidates exchange
-     btnVideoStart.disabled = true;
-     btnVideoJoin.disabled = false;
-    // establishRTCConnection();
-     try {
-       audio = new Audio('ring.wav');
-       audio.play();
-     } catch (e) {
-       trace(e);
-     }
-
-   }
-
-    // got sdp from remote
-    signallingServer.onReceiveSdp = function(sdp) {
-        // if local was the caller, set remote desc
-        if (localIsCaller) {
-            trace('is caller');
-            trace('set remote session desc with answer');
-            localPeerConnection.setRemoteDescription(new RTCSessionDescription(
-                sdp));
-        }
-        // if local is joining a call, set remote sdp and create answer
-        else {
-            trace('set remote session desc with offer');
-            localPeerConnection.setRemoteDescription(new RTCSessionDescription(sdp));
-
-                trace('make answer')
-                localPeerConnection.createAnswer(function(sessionDescription) {
-                    // set local description
-                    trace('set local session desc with answer');
-                    localPeerConnection.setLocalDescription(sessionDescription);
-
-                    // send local sdp to remote too
-                    signallingServer.sendSDP(sessionDescription);
-
-            },onCreateSessionDescriptionError);
-        }
-      }
-
-
-
-    // show remote stream
-    signallingServer.onCallAccepted = function(){
-      //remoteVideo.src = window.URL.createObjectURL(remoteStream);
-      if (window.URL) {
-    remoteVideo.src = window.URL.createObjectURL(remoteStream);
-  } else {
-    remoteVideo.src = remoteStream;
-  }
-    }
-
-    // save remote stream
-    localPeerConnection.onaddstream = function(data) {
-      remoteStream = data.stream;
-
-    }
-
-    // when room is full, alert user
-    signallingServer.onRoomFull = function(room) {
-        window.alert('Room "' + room +
-            '"" is full! Please join or create another room');
-    }
-
-    //reflect the current status of ICE gathering
-    localPeerConnection.onicegatheringstatechange = function(event){
-      trace(localPeerConnection.iceGatheringState);
-    }
-
-    //check ice connection state
-    localPeerConnection.oniceconnectionstatechange = function(event) {
-
-            trace(localPeerConnection.iceConnectionState);
-            try {
-              //kill connection if te other peer disconnect
-              if(localPeerConnection.iceConnectionState === 'disconnected'){
-                if (localPeerConnection != null) {
-                    localPeerConnection.removeStream(localStream);
-                    signallingServer.close();
-                    localPeerConnection.close();
-                    localVideo.src = "";
-                    remoteVideo.src = "";
-                }
-
-                btnVideoStart.disabled = false;
-                btnVideoJoin.disabled = false;
-                btnVideoStop.disabled = true;
-                localIsCaller = false;
-                initConnection();
-            }
-            } catch (e) {
-            }
-            if(localPeerConnection.iceConnectionState === 'closed'){
-              initConnection();
-            }
-            //if connection is established
-            // make a call
-          if(localPeerConnection.iceConnectionState === 'connected' && localIsCaller){
-            signallingServer.call();
-
-          }
-
-    }
-}
 
 btnVideoJoin.onclick = function(e) {
     e.preventDefault();
 
     // just joining a call, not offering
     localIsCaller = false;
-    if (window.URL) {
-      // show local video
-      localVideo.src = window.URL.createObjectURL(localStream);
-      // show remote video
-      remoteVideo.src = window.URL.createObjectURL(remoteStream);
-} else {
-  remoteVideo.src = remoteStream;
-  localVideo.src = remoteStream;
-}
+    navigator.mediaDevices.getUserMedia({
+        video: true,
+        audio: true
+    }).then(function(stream) {
+      /* use the stream */
+      // get and save local stream
+      trace('Got stream, saving it now and starting RTC conn');
 
-    // join the call
-    signallingServer.respond();
-    audio.pause();
-    btnVideoStart.disabled = true;
-    btnVideoJoin.disabled = true;
-    btnVideoStop.disabled = false;
+      // must add before calling setRemoteDescription() because then
+      // it triggers 'addstream' event
+      localPeerConnection.addStream(stream);
+      localStream = stream;
+      if (window.URL) {
+        // show local video
+        localVideo.src = window.URL.createObjectURL(localStream);
+      } else {
+
+        localVideo.src = localStream;
+      }
+
+
+
+          trace('make answer')
+          localPeerConnection.createAnswer(function(sessionDescription) {
+              // set local description
+              trace('set local session desc with answer');
+              localPeerConnection.setLocalDescription(sessionDescription);
+
+              // send local sdp to remote too
+              signallingServer.sendSDP(sessionDescription);
+
+      },onCreateSessionDescriptionError);
+    
+      audio.pause();
+      btnVideoStart.disabled = true;
+      btnVideoJoin.disabled = true;
+      btnVideoStop.disabled = false;
+
+
+  }).catch(function(error) {
+    /* handle the error */
+    //could not get media
+    console.error('Something went wrong!');
+    console.error(error);
+    alert(error);
+  });
 
 }
 

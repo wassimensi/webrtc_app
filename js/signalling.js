@@ -3,24 +3,11 @@ function trace(text){
 }
 
 
-// has methods to exchange SDP and ICE candidates and data channels
-//name of the room
-var room = "syhone";
-
-var SignallingServer = function(){
+var SignallingServer = function(room){
     this.room = room;
     //creat socket connection
     this.socket = io.connect();
 
-    this.socket.on('empty', function (room){
-      this.isInitiator = true;
-      trace('Room ' + room + ' has one client');
-    });
-
-    this.socket.on('full', function (room){
-      trace('Room ' + room + ' is full');
-      this.onRoomFull(room);
-    }.bind(this));
 
     this.socket.on('call received', function (room){
       trace('received call from the other peer of ' + room);
@@ -28,9 +15,9 @@ var SignallingServer = function(){
       this.onCallRceived();
     }.bind(this));
 
-    this.socket.on('call accepted', function (room){
-      trace(' call confirmed from the other peer of ' + room);
-      this.onCallAccepted();
+    this.socket.on('connection state received', function (room){
+      trace(' connection notification from the other peer of ' + room);
+      this.onConnectionReceived();
     }.bind(this));
 
     this.socket.on('joined', function (room, socketID){
@@ -43,18 +30,13 @@ var SignallingServer = function(){
       trace('you join' + data);
       trace('Room has ' + data + ' clients');
       //inform local peer that the second peer is already connected
-      this.secondPeerJoined();
+      this.youJoin();
     }.bind(this));
 
     this.socket.on('sdp received', function(sdp){
         trace('Received SDP ');
         trace(sdp);
         this.onReceiveSdp(sdp);
-    }.bind(this));
-
-    this.socket.on('establish request received', function(sdp){
-        trace('Received establish request');
-        this.onReceiveEstablishRequest();
     }.bind(this));
 
     this.socket.on('ice candidate received', function(candidate){
@@ -86,10 +68,9 @@ SignallingServer.prototype = {
           //send call to the callee
           this.socket.emit('call', this.room);
     },
-
-    respond: function(){
-      //send response to the caller
-        this.socket.emit('respond', this.room);
+    iAmConnected: function(){
+          //send call to the callee
+          this.socket.emit('connection notification', this.room);
     },
 
     close: function(){
@@ -97,10 +78,7 @@ SignallingServer.prototype = {
         this.socket.emit('Disconnecting', this.room);
         this.socket.disconnect();
     },
-    establishConnection: function(){
-        trace('establish remote connection')
-        this.socket.emit('establish connection',this.room);
-    },
+
     sendSDP: function(sdp){
         trace('sending sdp')
         trace(sdp);
@@ -119,9 +97,11 @@ SignallingServer.prototype = {
     onReceiveSdp: function(sdp){
         trace('Placeholder function: Received SDP')
     },
-    
-    secondPeerJoined: function(){
-        trace('Placeholder function: there are two peer');
+    onConnectionReceived: function(){
+        trace('Placeholder function: Received connection')
+    },
+    youJoin: function(){
+        trace('Placeholder function: you join room');
     },
     onGuestJoined: function(){
         trace('Placeholder function: Guest joined room');
@@ -129,19 +109,10 @@ SignallingServer.prototype = {
     onReceiveICECandidate: function(candidate){
         trace('Placeholder function: Received ICE candidate');
     },
-    onReceiveEstablishRequest: function(){
-        trace('Placeholder function: Received establish request');
-    },
-    onCallAccepted: function(){
-        trace('Placeholder function: guest join call');
 
-    },
     onCallRceived: function(){
         trace('Placeholder function: call received to the guest');
     },
-    onRoomFull: function(room){
-        trace('Placeholder function: Room is full!');
-    }
 
 }
 

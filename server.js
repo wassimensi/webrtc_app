@@ -26,6 +26,7 @@ var numClients = {};
 var clients=[];
 
 
+
 io.sockets.on('connection', function (socket){
 
   // convenience function to log server messages on the client
@@ -37,47 +38,28 @@ io.sockets.on('connection', function (socket){
 
   socket.on('create or join', function (room) {
 
-    log('Received request to create or join room ' + room);
-    if (numClients[room] === undefined) {
-         numClients[room] = 1;
-     } else {
-         numClients[room]++;
-     }
-    log('Room ' + room + ' now has ' + numClients[room] + ' client(s)');
+    log(' join room ' + room);
 
-    if (numClients[room] == 1) {
       socket.join(room);
       clients.push(socket);
       socket.room = room;
-      log('Client ID ' + socket.id + ' created room ' + room);
-      io.to(room).emit('empty', room);
-
-    } else if (numClients[room] === 2) {
       log('Client ID ' + socket.id + ' joined room ' + room);
-      socket.join(room);
-      socket.room = room;
-      clients.push(socket);
       socket.emit('join', room);
 			socket.to(room).emit('joined', room, socket.id);
 
-    } else { // max two clients
-      socket.emit('full', room);
-    }
-  });
+    });
   // when receive CALL, broadcast call to other user
   socket.on('call', function(room){
     log('Received SDP from ' + room);
     socket.to(room).emit('call received', room);
   });
-  // we are here!!!!!!!!!!
-  socket.on('establish connection', function(room){
-    log('establish connection request');
-    socket.to(room).emit('establish request received', room);
+
+  socket.on('connection notification', function(room){
+    log('Received connection state from ' + room);
+    socket.to(room).emit('connection state received', room);
   });
-  socket.on('respond', function(room){
-    log('Received response from ' + room);
-    socket.to(room).emit('call accepted', room);
-  });
+
+  
 	// when receive sdp, broadcast sdp to other user
 	socket.on('sdp', function(data){
 		log('Received SDP from ' + socket.id + data.sdp);
@@ -97,7 +79,7 @@ io.sockets.on('connection', function (socket){
   socket.on('Disconnecting', function(room){
     numClients[room]--;
     log("client disconnects and nbr of client is"+ numClients[room]);
-    
+
   });
 	socket.on('message', function (message) {
 		log('Got message:', message);
