@@ -48,48 +48,26 @@
               <span class="icon-bar"></span>
               <span class="icon-bar"></span>
             </button>
-              <a class="navbar-brand" href="#">WebRTC Video Chat</a>
+              <a class="navbar-brand" href="https://videochat6.herokuapp.com/">WebRTC Video Chat</a>
             </div>
             <div id="navbar" class="navbar-collapse collapse">
               <!-- chatroom name form -->
-              <form class="navbar-form navbar-right form-inline">
-                <output class="form-control" type="text" id="connection-state">not connected</output>
-                <output class="form-control" type="text" id="guest-connection-state">not connected</output>
+              <form class="navbar-form navbar-right form-inline" method="get" action="/signup">
 
-                <button class="btn btn-primary" id="btn-video-start">Start</button>
-                <button class="btn btn-default"  id="btn-video-join">Join</button>
-                <button class="btn btn-default"  disabled id="btn-video-stop">Stop</button>
+                <button class="btn btn-default"  id="sign-up" >Sign up</button>
+
+              </form>
+              <form class="navbar-form navbar-right form-inline" method="get" action="/login">
+                <button class="btn btn-default"  id="login" >Login</button>
               </form>
             </div>
-
-            <!--/.navbar-collapse --> </div>
-
         </nav>
 
-        <div class="container main">
+        <div class="container-main">
 
-           <div class="row">
-             <div class="col-xs-3 col-sm-2 col-lg-2" >
-
-       </div>
-    <div class="col-xs-9 col-sm-10 col-lg-10" >
-      <div class="row">
-      <div class="row videos">
-        <div class="remote-video">
-          <video width="280" height="250" autoplay="true" id="remote-video"></video>
-        </div>
-        <div class="local-video">
-          <video width="280" height="250" autoplay="true" id="local-video" muted></video>
-        </div>
-      </div>
-    </div>
-    <div class="row">
-         <div class="panel-body" id="messages-area" ></div>
-    </div>
-    <div class="row">
-        <input type = "text" class = "form-control" id = "text-message" placeholder = "Enter message">
-        <button id = "send-message-button" class="btn btn-default">Send message</button>
-    </div>
+           <h1 >Home</h1>
+           <p>kbkjbkkz bkbkjvbjk lvervkjkj lhaoihv hihvaervi iohavre <br>
+             lsnlvnknlkerblrekbnlern lizhv llvbzv lhlnvkev nlk. </p>
   </div>
 </div>
 </div>
@@ -105,8 +83,6 @@
     <script src="js/vendor/socket.io.js"></script>
 
     <script src="js/lib/adapter.js"></script>
-    <script src="js/main.js"></script>
-
 
 <script src="https://code.createjs.com/soundjs-0.6.2.min.js"></script>
 

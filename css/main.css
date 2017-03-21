@@ -39,12 +39,17 @@ height: 90%;
 
 .local-video{
     margin: 10px;
-    position: absolute;;
+    position: absolute;
     width: 200px;
     height: 150px;
     right: 0px;
     bottom: 30px;
     border: 1px solid #777;
+}
+.container-main{
+  position :absolute;
+  margin-top: 100px;
+  margin-left: 50px;
 }
 .panel-body {
   min-height: 50px;

@@ -4,17 +4,18 @@
 // Turn server addresses
 //work as a relay server
 
+
 var peerConnectionConfig = {
   rtcpMuxPolicy:"require",
   bundlePolicy:"max-bundle",
   iceServers:[
     {urls: ["turn:66.102.1.127:19305?transport=udp",
-       "turn:[2A00:1450:400C:C06::7F]:19305?transport=udp",
+      "turn:[2A00:1450:400C:C08::7F]:19305?transport=udp",
        "turn:66.102.1.127:443?transport=tcp",
-       "turn:[2A00:1450:400C:C06::7F]:443?transport=tcp"
+       "turn:[2A00:1450:400C:C08::7F]:443?transport=tcp"
        ],
-     username:"CJ7ChsYFEgZKuYareIoYzc/s6OMTIICjBQ",
-     credential:"iZlI+ygLv4wrN36YT4ddss10s/A="
+     username:"COKOzMYFEgbiClUwh2cYzc/s6OMTIICjBQ",
+     credential:"qn3durvN9Mxaql7Y5mZVFmwA5Pw="
     },
     {urls:["stun:stun.l.google.com:19302"]}
 
@@ -331,7 +332,7 @@ btnVideoJoin.onclick = function(e) {
               signallingServer.sendSDP(sessionDescription);
 
       },onCreateSessionDescriptionError);
-    
+
       audio.pause();
       btnVideoStart.disabled = true;
       btnVideoJoin.disabled = true;

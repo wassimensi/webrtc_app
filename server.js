@@ -5,20 +5,121 @@ var server = require('http').Server(app);
 var io = require('socket.io')(server);
 const url = require('url');
 var path = require('path');
-//set port
+var Mongo = require("mongodb");
+var assert = require("assert");
+var router = express.Router();
+var engine = require('consolidate');
 
-var port = process.env.PORT || 8080
+var bodyParser = require('body-parser');
+var multer = require('multer'); // v1.0.5
+var upload = multer(); // for parsing multipart/form-data
 app.use(express.static(__dirname));
+app.set('views', __dirname + '/views');
+app.engine('html', require('ejs').renderFile);
+app.set('view engine', 'html');
 
-server.listen(port, function(){
+app.use(bodyParser.json()); // for parsing application/json
+app.use(bodyParser.urlencoded({ extended: true })); // for parsing application/x-www-form-urlencoded
+
+
+var dburl = "mongodb://localhost:27017/webrtc-db";
+
+//set port
+var port = process.env.PORT || 8080
+
+
+server.listen(port, function(error){
+  assert.equal(null,error);
 console.log("app running on port 8080");
 });
-//app.use(express.static(__dirname));
+
 
 // routes
-app.get('/login', function(req, res){
-  res.sendFile( __dirname + '/login_page.html');
+app.get('/', function(req, res){
+  //res.render("index.html");
+  res.render('index.html');
 });
+app.get('/login', function(req, res){
+  res.render("lgindex.html");
+});
+app.get('/signup', function(req, res){
+  res.render("suindex.html");
+});
+app.get('/app', function(req, res){
+  res.render("index.html");
+});
+app.post('/login', function(req, res){
+  var resultArray = [];
+  Mongo.connect(dburl, function(error, db) {
+      assert.equal(null,error);
+      db.collection("clients").find({"email": req.body.identifier}).count().then(function(numItem, err){
+        assert.equal(null, err);
+        if(numItem != 0){
+          res.redirect("/views/appindex.html");
+          db.close();
+        }else{
+          console.log("ca n'existe pas");
+        }
+      });
+});
+});
+app.post('/insert', function(req, res){
+
+      if((req.body.pwd===req.body.confirmpwd) && (req.body.email === req.body.confirmemail) ){
+        console.log("ça passe");
+
+        // mongo data base
+        Mongo.connect(dburl, function(error, db) {
+            assert.equal(null,error);
+            db.collection("clients").find({"email": req.body.email}).count().then(function(numItems) {
+              if(numItems ===0){
+                var client = {
+                  lastname: req.body.lastname,
+                  firstName: req.body.firstname,
+                  username: req.body.username ,
+                  email: req.body.email,
+                  pwd: req.body.pwd
+                }
+                db.collection("clients").insertOne(client, null, function (error, results) {
+                assert.equal(null,error);
+                console.log("item inserted");
+                db.close;
+                res.redirect('/');
+              });
+
+            }else{
+                console.log("Existing mail");
+                res.redirect('/views/suindex.html');
+              }
+
+              });
+            });
+        }else{
+          console.log("passwords or emails do not match");
+          res.redirect('/views/suindex.html');
+        }
+
+    });
+
+
+
+
+
+      //db.collection("clients").remove({'name': 'GLaDOS'});
+        //  console.log("Connecté à la base de données 'webrtc-db'");
+      //console.log("Le document a bien été inséré");
+      //db.collection("clients").find().toArray(function (error, results) {
+          //if (error) throw error;
+          //console.log(results);
+          //results.forEach(function( obj) {
+              //console.log(
+
+                //  "Nom : " + obj.name + "\n"   +
+                //  "Jeu : " + obj.game
+            //  );
+          //});
+      //});
+
 
 
 //client table
@@ -59,7 +160,7 @@ io.sockets.on('connection', function (socket){
     socket.to(room).emit('connection state received', room);
   });
 
-  
+
 	// when receive sdp, broadcast sdp to other user
 	socket.on('sdp', function(data){
 		log('Received SDP from ' + socket.id + data.sdp);
