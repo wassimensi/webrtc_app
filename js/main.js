@@ -4,18 +4,17 @@
 // Turn server addresses
 //work as a relay server
 
-
 var peerConnectionConfig = {
   rtcpMuxPolicy:"require",
   bundlePolicy:"max-bundle",
   iceServers:[
-    {urls: ["turn:66.102.1.127:19305?transport=udp",
+    {urls: ["turn:74.125.140.127:19305?transport=udp",
       "turn:[2A00:1450:400C:C08::7F]:19305?transport=udp",
-       "turn:66.102.1.127:443?transport=tcp",
+       "turn:74.125.140.127:443?transport=tcp",
        "turn:[2A00:1450:400C:C08::7F]:443?transport=tcp"
        ],
-     username:"COKOzMYFEgbiClUwh2cYzc/s6OMTIICjBQ",
-     credential:"qn3durvN9Mxaql7Y5mZVFmwA5Pw="
+     username:"CM7p28YFEgZH/h46f4AYzc/s6OMTIICjBQ",
+     credential:"fljWD1mi5rZ9Q/rQpCCSkdHE9Wk="
     },
     {urls:["stun:stun.l.google.com:19302"]}
 

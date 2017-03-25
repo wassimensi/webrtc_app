@@ -52,13 +52,14 @@
             </div>
             <div id="navbar" class="navbar-collapse collapse">
               <!-- chatroom name form -->
-              <form class="navbar-form navbar-right form-inline">
+              <form class="navbar-form navbar-right form-inline" method="get" action="/login">
                 <output class="form-control" type="text" id="connection-state">not connected</output>
                 <output class="form-control" type="text" id="guest-connection-state">not connected</output>
 
                 <button class="btn btn-primary" id="btn-video-start">Start</button>
                 <button class="btn btn-default"  id="btn-video-join">Join</button>
                 <button class="btn btn-default"  disabled id="btn-video-stop">Stop</button>
+                <button class="btn btn-default" type="submit"  id="btn-disconnect">Disconnect</button>
               </form>
             </div>
 

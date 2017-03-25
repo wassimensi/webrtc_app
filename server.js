@@ -3,29 +3,30 @@ var express = require('express');
 var app = express();
 var server = require('http').Server(app);
 var io = require('socket.io')(server);
-const url = require('url');
-var path = require('path');
-var Mongo = require("mongodb");
+//const url = require('url');
+//var path = require('path');
+var Mongo = require("mongodb").MongoClient;
 var assert = require("assert");
 var router = express.Router();
-var engine = require('consolidate');
+
 
 var bodyParser = require('body-parser');
+var engine = require('consolidate');
 var multer = require('multer'); // v1.0.5
 var upload = multer(); // for parsing multipart/form-data
 app.use(express.static(__dirname));
 app.set('views', __dirname + '/views');
-app.engine('html', require('ejs').renderFile);
+//app.engine('html', require('ejs').renderFile);
 app.set('view engine', 'html');
-
+app.engine('html', require('hbs').__express);
 app.use(bodyParser.json()); // for parsing application/json
 app.use(bodyParser.urlencoded({ extended: true })); // for parsing application/x-www-form-urlencoded
 
 
-var dburl = "mongodb://localhost:27017/webrtc-db";
+var dburl = 'mongodb://wassimdbu:wassim@ds137110.mlab.com:37110/syrphonedb';
 
 //set port
-var port = process.env.PORT || 8080
+var port = process.env.PORT || 8080;
 
 
 server.listen(port, function(error){
@@ -40,65 +41,86 @@ app.get('/', function(req, res){
   res.render('index.html');
 });
 app.get('/login', function(req, res){
-  res.render("lgindex.html");
+  res.render("lgindex.hbs");
 });
 app.get('/signup', function(req, res){
-  res.render("suindex.html");
+  res.render("suindex.hbs");
 });
-app.get('/app', function(req, res){
-  res.render("index.html");
-});
+
+
+
 app.post('/login', function(req, res){
   var resultArray = [];
   Mongo.connect(dburl, function(error, db) {
       assert.equal(null,error);
-      db.collection("clients").find({"email": req.body.identifier}).count().then(function(numItem, err){
+      db.collection("clients").find({"email": req.body.identifier}).toArray(function( err,item){
         assert.equal(null, err);
-        if(numItem != 0){
-          res.redirect("/views/appindex.html");
-          db.close();
+        if(item.length != 0){
+          if(item[0].pwd === req.body.pwd)
+          {
+            res.redirect("/views/appindex.html");
+
+          }else{
+            console.log("pwd wrong");
+            res.render('lgindex.hbs',{status : 'wrong password' });
+          }
+
         }else{
+          res.render('lgindex.hbs',{status : 'wrong email' });
           console.log("ca n'existe pas");
         }
+
+      }, function(){
+        db.close();
       });
 });
 });
 app.post('/insert', function(req, res){
 
-      if((req.body.pwd===req.body.confirmpwd) && (req.body.email === req.body.confirmemail) ){
-        console.log("ça passe");
+      if(req.body.pwd===req.body.confirmpwd ){
 
         // mongo data base
         Mongo.connect(dburl, function(error, db) {
             assert.equal(null,error);
-            db.collection("clients").find({"email": req.body.email}).count().then(function(numItems) {
+            db.collection("clients").find({"email": req.body.email}).count().then(function( numItems) {
+
               if(numItems ===0){
-                var client = {
-                  lastname: req.body.lastname,
-                  firstName: req.body.firstname,
-                  username: req.body.username ,
-                  email: req.body.email,
-                  pwd: req.body.pwd
-                }
-                db.collection("clients").insertOne(client, null, function (error, results) {
-                assert.equal(null,error);
-                console.log("item inserted");
-                db.close;
-                res.redirect('/');
-              });
+                db.collection("clients").find({"username": req.body.username}).count().then(function( numItems) {
+
+                  if(numItems ===0){
+                    var client = {
+                      lastname: req.body.lastname,
+                      firstName: req.body.firstname,
+                      username: req.body.username ,
+                      email: req.body.email,
+                      pwd: req.body.pwd
+                    }
+                    db.collection("clients").insertOne(client, null, function (error, results) {
+                    assert.equal(null,error);
+                    console.log("item inserted");
+                    res.redirect('/');
+                  });
+                  }else{
+                    console.log("Existing username");
+                    res.render('suindex.hbs',{status : 'Existing username' });
+                  }
+                });
 
             }else{
                 console.log("Existing mail");
-                res.redirect('/views/suindex.html');
+                res.render('suindex.hbs',{status : 'Existing email' });
               }
 
               });
             });
         }else{
-          console.log("passwords or emails do not match");
-          res.redirect('/views/suindex.html');
+          console.log("passwords do not match");
+          res.render('suindex.hbs',{status : 'passwords do not match' });
         }
 
+    },function(){
+      console.log('db closed');
+      db.close;
     });
 
 

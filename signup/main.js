@@ -1,37 +1,22 @@
-$(document).ready(function(){
-    /* The following code is executed once the DOM is loaded */
+wassimdbu:wassim@ds137110.mlab.com:37110/syrphonedb
+mongodb://localhost:27017/webrtc-db
 
-    /* This flag will prevent multiple comment submits: */
-    var working = false;
-    $("#submit").click(function(){
-      var inputtedPhoneNumber = $( "#firstname" ).val();
+doSomething()
+    .then(doNextStage)
+    .then(recordTheWorkSoFar)
+    .then(updateAnyInterestedParties)
+    .then(tidyUp)
+    .catch(errorHandler)
 
-    // Match only numbers
-    var phoneNumberRegex = /^\d*$/;
 
-    // If the phone number doesn't match the regex
-    if ( inputtedPhoneNumber ===""  ) {
+    function makeIterator(array) {
+    var nextIndex = 0;
 
-        // Usually show some kind of error message here
-        alert("champ vide");
-        // Prevent the form from submitting
-        event.preventDefault();
-    } else {
-
-      $.ajax({
-           type: 'POST',
-           url: 'http://localhost:8080/enroll',
-           data: $('#addCommentForm').serialize(),
-           success: function(response) {
-              alert("Submitted comment");
-               $("#commentList").append("Name:" + $("#firstname").val() );
-           },
-          error: function() {
-               //$("#commentList").append($("#name").val() + "<br/>" + $("#body").val());
-              alert("There was an error submitting comment");
-          }
-       });
-    }
-
-});
-});
+    return {
+       next: function() {
+           return nextIndex < array.length ?
+               {value: array[nextIndex++], done: false} :
+               {done: true};
+       }
+    };
+}
